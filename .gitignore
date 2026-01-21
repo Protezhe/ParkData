@@ -1,6 +1,9 @@
 # Virtual environment
 venv/
 
+# macOS
+.DS_Store
+
 # CSV files
 *.csv
 *.png
