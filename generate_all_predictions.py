@@ -25,6 +25,43 @@ ATTRACTIONS = [
 ]
 
 
+def adjust_tramvay_low_values(df, threshold=1000):
+    """
+    Замена значений воздушного трамвая на среднемедианные
+    в дни, когда билетов меньше threshold
+    """
+    # Вычисляем медиану отдельно для рабочих и выходных дней
+    # где количество билетов >= threshold
+
+    # Для рабочих дней
+    mask_workday_high = (df['is_weekend'] == 0) & (df[PROXY_ATTRACTION] >= threshold)
+    median_workday = df.loc[mask_workday_high, PROXY_ATTRACTION].median()
+
+    # Для выходных и праздников
+    mask_weekend_high = (df['is_weekend'] == 1) & (df[PROXY_ATTRACTION] >= threshold)
+    median_weekend = df.loc[mask_weekend_high, PROXY_ATTRACTION].median()
+
+    # Подсчет количества замен
+    mask_workday_low = (df['is_weekend'] == 0) & (df[PROXY_ATTRACTION] < threshold) & (df[PROXY_ATTRACTION] > 0)
+    mask_weekend_low = (df['is_weekend'] == 1) & (df[PROXY_ATTRACTION] < threshold) & (df[PROXY_ATTRACTION] > 0)
+
+    count_workday = mask_workday_low.sum()
+    count_weekend = mask_weekend_low.sum()
+
+    # Замена значений
+    df.loc[mask_workday_low, PROXY_ATTRACTION] = median_workday
+    df.loc[mask_weekend_low, PROXY_ATTRACTION] = median_weekend
+
+    print(f"\nКорректировка значений {PROXY_ATTRACTION}:")
+    print(f"  Порог: {threshold} билетов")
+    print(f"  Медиана для рабочих дней (>={threshold}): {median_workday:.0f}")
+    print(f"  Медиана для выходных/праздников (>={threshold}): {median_weekend:.0f}")
+    print(f"  Заменено значений в рабочие дни: {count_workday}")
+    print(f"  Заменено значений в выходные/праздники: {count_weekend}")
+
+    return df
+
+
 def load_and_prepare_data():
     """Загрузка и подготовка данных"""
     df = pd.read_csv('Все_с_канаткой_полные_данные.csv', encoding='utf-8')
@@ -50,6 +87,9 @@ def load_and_prepare_data():
     # Дни недели
     df['День_1'] = (df['ДеньНедели'] == 1).astype(int)
     df['День_5'] = (df['ДеньНедели'] == 5).astype(int)
+
+    # Корректировка значений воздушного трамвая
+    df = adjust_tramvay_low_values(df, threshold=1000)
 
     return df
 
@@ -128,6 +168,14 @@ def plot_prediction(attraction_name, train_df, test_df, mae, r2):
 
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
 
+    # Даты озвучки аттракционов (день года)
+    voice_dates = {
+        'Аэротакси': 197,  # 16 июля
+        'Вальс часов': 226,  # 14 августа
+        'Астродром': 212,  # 31 июля
+    }
+    voice_day = voice_dates.get(attraction_name)
+
     day_types = [(0, 'Рабочие дни'), (1, 'Выходные и праздники')]
 
     for j, (is_weekend, day_type_name) in enumerate(day_types):
@@ -167,6 +215,11 @@ def plot_prediction(attraction_name, train_df, test_df, mae, r2):
                             (test_df['is_rain'] == 1)]['ДеньГода'].values
         for day in rain_days:
             ax_top.axvspan(day - 0.5, day + 0.5, color='lightblue', alpha=0.4, zorder=1)
+
+        # Добавляем линию озвучки аттракциона
+        if voice_day is not None:
+            ax_top.axvline(x=voice_day, color='green', linestyle='--', linewidth=2,
+                          alpha=0.8, label='Озвучка аттракциона', zorder=5)
 
         ax_top.set_ylabel('Количество проданных билетов', fontsize=10)
         ax_top.set_title(f'{attraction_name} 2025 - {day_type_name}', fontsize=12, fontweight='bold')
@@ -211,6 +264,11 @@ def plot_prediction(attraction_name, train_df, test_df, mae, r2):
         for day in rain_2024:
             ax_bottom.axvspan(day - 0.5, day + 0.5, color='lightblue', alpha=0.4, zorder=1)
 
+        # Добавляем линию озвучки аттракциона
+        if voice_day is not None:
+            ax_bottom.axvline(x=voice_day, color='green', linestyle='--', linewidth=2,
+                             alpha=0.8, label='Озвучка аттракциона', zorder=5)
+
         ax_bottom.set_xlabel('Дата', fontsize=10)
         ax_bottom.set_ylabel('Количество проданных билетов', fontsize=10)
         ax_bottom.set_title(f'{attraction_name} 2024 (обучающие данные) - {day_type_name}',
@@ -222,9 +280,10 @@ def plot_prediction(attraction_name, train_df, test_df, mae, r2):
         ax_bottom.set_xticklabels([t[1] for t in month_ticks], fontsize=9)
 
     # Общая легенда
-    fig.text(0.5, 0.02,
-             'Голубая заливка = дождливые дни | Пунктирная фиолетовая = температура',
-             ha='center', fontsize=10, style='italic')
+    legend_text = 'Голубая заливка = дождливые дни | Пунктирная фиолетовая = температура'
+    if voice_day is not None:
+        legend_text += ' | Зеленая пунктирная = озвучка аттракциона'
+    fig.text(0.5, 0.02, legend_text, ha='center', fontsize=10, style='italic')
 
     plt.suptitle(f'Предсказание посещаемости {attraction_name} (модель с {PROXY_ATTRACTION})\n'
                  f'MAE = {mae:.1f} билетов, R2 = {r2:.3f}',

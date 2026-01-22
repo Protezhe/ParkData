@@ -1,1 +1,1 @@
-source venv/bin/activate && python3 generate_all_predictions_simple.py
+source venv/bin/activate && python3 generate_all_predictions.py
