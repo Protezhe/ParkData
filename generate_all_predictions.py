@@ -25,43 +25,6 @@ ATTRACTIONS = [
 ]
 
 
-def adjust_tramvay_low_values(df, threshold=1000):
-    """
-    Замена значений воздушного трамвая на среднемедианные
-    в дни, когда билетов меньше threshold
-    """
-    # Вычисляем медиану отдельно для рабочих и выходных дней
-    # где количество билетов >= threshold
-
-    # Для рабочих дней
-    mask_workday_high = (df['is_weekend'] == 0) & (df[PROXY_ATTRACTION] >= threshold)
-    median_workday = df.loc[mask_workday_high, PROXY_ATTRACTION].median()
-
-    # Для выходных и праздников
-    mask_weekend_high = (df['is_weekend'] == 1) & (df[PROXY_ATTRACTION] >= threshold)
-    median_weekend = df.loc[mask_weekend_high, PROXY_ATTRACTION].median()
-
-    # Подсчет количества замен
-    mask_workday_low = (df['is_weekend'] == 0) & (df[PROXY_ATTRACTION] < threshold) & (df[PROXY_ATTRACTION] > 0)
-    mask_weekend_low = (df['is_weekend'] == 1) & (df[PROXY_ATTRACTION] < threshold) & (df[PROXY_ATTRACTION] > 0)
-
-    count_workday = mask_workday_low.sum()
-    count_weekend = mask_weekend_low.sum()
-
-    # Замена значений
-    df.loc[mask_workday_low, PROXY_ATTRACTION] = median_workday
-    df.loc[mask_weekend_low, PROXY_ATTRACTION] = median_weekend
-
-    print(f"\nКорректировка значений {PROXY_ATTRACTION}:")
-    print(f"  Порог: {threshold} билетов")
-    print(f"  Медиана для рабочих дней (>={threshold}): {median_workday:.0f}")
-    print(f"  Медиана для выходных/праздников (>={threshold}): {median_weekend:.0f}")
-    print(f"  Заменено значений в рабочие дни: {count_workday}")
-    print(f"  Заменено значений в выходные/праздники: {count_weekend}")
-
-    return df
-
-
 def load_and_prepare_data():
     """Загрузка и подготовка данных"""
     df = pd.read_csv('Все_с_канаткой_полные_данные.csv', encoding='utf-8')
@@ -87,9 +50,6 @@ def load_and_prepare_data():
     # Дни недели
     df['День_1'] = (df['ДеньНедели'] == 1).astype(int)
     df['День_5'] = (df['ДеньНедели'] == 5).astype(int)
-
-    # Корректировка значений воздушного трамвая
-    df = adjust_tramvay_low_values(df, threshold=1000)
 
     return df
 

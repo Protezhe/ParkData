@@ -1,1 +1,5 @@
 source venv/bin/activate && python3 generate_all_predictions.py
+
+source venv/bin/activate && python3 generate_all_predictions_simple.py
+
+Воздушный трамвай, затем Темп_комфорт, Темп_диапазон, Давление (гПа), Посещаемость парка
